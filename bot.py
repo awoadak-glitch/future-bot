@@ -51,24 +51,35 @@ def programming_menu():
     markup.add('TP-Link 🌐', 'نوع آخر 📶', '🔙 رجوع للقائمة')
     return markup
 
-# --- ميزة المنشن في جروب المهندسين للإذاعة العامة ---
-@bot.message_handler(func=lambda m: m.chat.id == ENGINEERS_GROUP_ID and m.text and f"@{bot.get_me().username}" in m.text)
+# --- ميزة الإذاعة الذكية (نصوص + صور + فيديوهات) ---
+@bot.message_handler(func=lambda m: m.chat.id == ENGINEERS_GROUP_ID and (m.text or m.caption) and f"@{bot.get_me().username}" in (m.text or m.caption), content_types=['text', 'photo', 'video'])
 def handle_broadcast(message):
-    raw_text = message.text.replace(f"@{bot.get_me().username}", "").strip()
-    if not raw_text:
-        bot.reply_to(message, "⚠️ يا هندسة، اكتب نص الرسالة مع المنشن عشان أرسلها للكل.")
+    bot_username = f"@{bot.get_me().username}"
+    # استخراج النص سواء كان رسالة نصية أو شرح تحت ميديا
+    raw_caption = message.text if message.text else message.caption
+    clean_text = raw_caption.replace(bot_username, "").strip()
+    
+    users = load_users()
+    if not users:
+        bot.reply_to(message, "⚠️ لا يوجد زبائن مسجلين في القائمة حالياً.")
         return
 
-    users = load_users()
-    bot.reply_to(message, f"⏳ جاري الإرسال إلى {len(users)} مشترك...")
+    bot.reply_to(message, f"⏳ جاري توزيع الإعلان على {len(users)} مشترك...")
     
     count = 0
     for user_id in users:
         try:
-            bot.send_message(user_id, f"📢 **إعلان من المستقبل نت:**\n\n{raw_text}", parse_mode="Markdown")
+            if message.content_type == 'text':
+                bot.send_message(user_id, f"📢 **إعلان من المستقبل نت:**\n\n{clean_text}", parse_mode="Markdown")
+            elif message.content_type == 'photo':
+                bot.send_photo(user_id, message.photo[-1].file_id, caption=f"📢 **إعلان من المستقبل نت:**\n\n{clean_text}", parse_mode="Markdown")
+            elif message.content_type == 'video':
+                bot.send_video(user_id, message.video.file_id, caption=f"📢 **إعلان من المستقبل نت:**\n\n{clean_text}", parse_mode="Markdown")
+            
             count += 1
-            time.sleep(0.05)
-        except: continue
+            time.sleep(0.05) # لتفادي حظر تليجرام
+        except:
+            continue
     
     bot.send_message(ENGINEERS_GROUP_ID, f"✅ تم الإرسال بنجاح لـ {count} مشترك.")
 
@@ -85,7 +96,6 @@ def handle_logic(message):
     u_text = message.text.strip()
     u_text_low = u_text.lower()
 
-    # --- معالجة أمر الإلغاء ---
     if u_text == '❌ إلغاء العملية':
         user_context.pop(cid, None)
         bot.send_message(cid, "تم إلغاء العملية والعودة للقائمة الرئيسية. 👍", reply_markup=main_menu())
@@ -116,12 +126,10 @@ def handle_logic(message):
         except: bot.send_message(cid, "⚠️ تعذر تحميل الفيديو.")
         return
 
-    # إذا كان المستخدم في وضع إدخال بيانات
     if cid in user_context:
         validate_and_process(message)
         return
 
-    # الدخول في وضع الاشتراك أو البلاغ
     if any(word in u_text_low for word in ["اشتراك", "نت جديد"]) or u_text == '🆕 اشتراك جديد':
         user_context[cid] = "waiting_order"
         bot.send_message(cid, "📝 **طلب اشتراك جديد**\nأرسل (اسمك + موقعك + رقمك) في رسالة واحدة.\nأو اضغط إلغاء بالأسفل:", reply_markup=cancel_menu())
@@ -132,7 +140,6 @@ def handle_logic(message):
         bot.send_message(cid, "🛠 **فتح بلاغ صيانة**\nاكتب اسمك وموقعك ووصف المشكلة.\nأو اضغط إلغاء بالأسفل:", reply_markup=cancel_menu())
         return
 
-    # رد الذكاء الاصطناعي العام
     try:
         res = client.models.generate_content(model="gemini-2.0-flash", contents=f"زبون يقول {u_text}. رد بلهجة عدنية.")
         bot.send_message(cid, res.text, reply_markup=main_menu())
@@ -144,7 +151,6 @@ def validate_and_process(message):
     state = user_context[cid]
     u_text = message.text.strip()
 
-    # الفلتر المحلي الذكي
     if len(u_text) < 10 or not any(char.isdigit() for char in u_text) or re.match(r'^[\W_]+$', u_text):
         bot.send_message(cid, "⚠️ البيانات غير كافية. يرجى كتابة (الاسم، الموقع، ورقم الجوال) بوضوح لخدمتكم.")
         return
