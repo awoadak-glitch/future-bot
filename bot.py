@@ -35,10 +35,15 @@ def save_user(user_id):
 
 user_context = {}
 
-# --- دوال المنيو ---
+# --- دوال القوائم ---
 def main_menu():
     markup = types.ReplyKeyboardMarkup(row_width=2, resize_keyboard=True)
     markup.add('🆕 اشتراك جديد', '🚨 بلاغ عطل', '📊 الأسعار والباقات', '🛠 برمجة الراوتر')
+    return markup
+
+def cancel_menu():
+    markup = types.ReplyKeyboardMarkup(row_width=1, resize_keyboard=True)
+    markup.add('❌ إلغاء العملية')
     return markup
 
 def programming_menu():
@@ -49,9 +54,7 @@ def programming_menu():
 # --- ميزة المنشن في جروب المهندسين للإذاعة العامة ---
 @bot.message_handler(func=lambda m: m.chat.id == ENGINEERS_GROUP_ID and m.text and f"@{bot.get_me().username}" in m.text)
 def handle_broadcast(message):
-    # استخراج النص بدون المنشن
     raw_text = message.text.replace(f"@{bot.get_me().username}", "").strip()
-    
     if not raw_text:
         bot.reply_to(message, "⚠️ يا هندسة، اكتب نص الرسالة مع المنشن عشان أرسلها للكل.")
         return
@@ -64,9 +67,8 @@ def handle_broadcast(message):
         try:
             bot.send_message(user_id, f"📢 **إعلان من المستقبل نت:**\n\n{raw_text}", parse_mode="Markdown")
             count += 1
-            time.sleep(0.05) # حماية من الحظر
-        except:
-            continue
+            time.sleep(0.05)
+        except: continue
     
     bot.send_message(ENGINEERS_GROUP_ID, f"✅ تم الإرسال بنجاح لـ {count} مشترك.")
 
@@ -79,9 +81,15 @@ def send_welcome(message):
 @bot.message_handler(func=lambda m: m.chat.type == 'private' and m.text)
 def handle_logic(message):
     cid = message.chat.id
-    save_user(cid) # تسجيل المستخدم تلقائياً
+    save_user(cid)
     u_text = message.text.strip()
     u_text_low = u_text.lower()
+
+    # --- معالجة أمر الإلغاء ---
+    if u_text == '❌ إلغاء العملية':
+        user_context.pop(cid, None)
+        bot.send_message(cid, "تم إلغاء العملية والعودة للقائمة الرئيسية. 👍", reply_markup=main_menu())
+        return
 
     if u_text == '📊 الأسعار والباقات':
         PRICES_INFO = "🌐 **باقات المستقبل نت:**\n200 ريال (كرت البيض)\n500 ريال (باقة البطاط)\n1000 ريال (باقة الدجاج)\n📍 المنصورة - كابوتا"
@@ -108,23 +116,26 @@ def handle_logic(message):
         except: bot.send_message(cid, "⚠️ تعذر تحميل الفيديو.")
         return
 
+    # إذا كان المستخدم في وضع إدخال بيانات
     if cid in user_context:
         validate_and_process(message)
         return
 
+    # الدخول في وضع الاشتراك أو البلاغ
     if any(word in u_text_low for word in ["اشتراك", "نت جديد"]) or u_text == '🆕 اشتراك جديد':
         user_context[cid] = "waiting_order"
-        bot.send_message(cid, "📝 **طلب اشتراك**\nأرسل (اسمك + موقعك + رقمك) بوضوح.")
+        bot.send_message(cid, "📝 **طلب اشتراك جديد**\nأرسل (اسمك + موقعك + رقمك) في رسالة واحدة.\nأو اضغط إلغاء بالأسفل:", reply_markup=cancel_menu())
         return
 
     if any(word in u_text_low for word in ["عطل", "بلاغ"]) or u_text == '🚨 بلاغ عطل':
         user_context[cid] = "waiting_complaint"
-        bot.send_message(cid, "🛠 **فتح بلاغ**\nاكتب اسمك وموقعك ووصف المشكلة.")
+        bot.send_message(cid, "🛠 **فتح بلاغ صيانة**\nاكتب اسمك وموقعك ووصف المشكلة.\nأو اضغط إلغاء بالأسفل:", reply_markup=cancel_menu())
         return
 
+    # رد الذكاء الاصطناعي العام
     try:
         res = client.models.generate_content(model="gemini-2.0-flash", contents=f"زبون يقول {u_text}. رد بلهجة عدنية.")
-        bot.send_message(cid, res.text)
+        bot.send_message(cid, res.text, reply_markup=main_menu())
     except:
         bot.send_message(cid, "كيف نخدمك؟ استخدم الأزرار بالأسفل.")
 
@@ -135,7 +146,7 @@ def validate_and_process(message):
 
     # الفلتر المحلي الذكي
     if len(u_text) < 10 or not any(char.isdigit() for char in u_text) or re.match(r'^[\W_]+$', u_text):
-        bot.send_message(cid, "⚠️ البيانات غير كافية. يرجى كتابة (الاسم، الموقع، ورقم الجوال) بوضوح.")
+        bot.send_message(cid, "⚠️ البيانات غير كافية. يرجى كتابة (الاسم، الموقع، ورقم الجوال) بوضوح لخدمتكم.")
         return
 
     tag = "🆕 **اشتراك جديد**" if state == "waiting_order" else "🚨 **بلاغ عطل**"
