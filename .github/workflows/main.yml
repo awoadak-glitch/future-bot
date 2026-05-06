@@ -3,7 +3,9 @@ name: Future Net Bot
 on:
   push:
     branches: [ main ]
-  workflow_dispatch: # يتيح لك تشغيل البوت يدوياً أيضاً
+  workflow_dispatch:
+  schedule:
+    - cron: '0 */5 * * *' # يعيد التشغيل تلقائياً كل 5 ساعات لضمان الاستمرارية
 
 jobs:
   run-bot:
@@ -22,7 +24,6 @@ jobs:
           pip install pyTelegramBotAPI google-genai
 
       - name: Run Future Bot
-        env:
-          TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
-          GEMINI_KEY: ${{ secrets.GEMINI_KEY }}
+        # ملاحظة: بما أنك وضعت التوكن داخل الكود، لا نحتاج لتعريف الـ env هنا
+        # لكن سأتركها لك كخيار احتياطي إذا قررت العودة للسيكرتس مستقبلاً
         run: python bot.py
