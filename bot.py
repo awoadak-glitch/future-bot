@@ -12,8 +12,8 @@ LOGO_URL = "https://i.imgur.com/8f8v9K4.png"
 
 # روابط الفيديوهات المباشرة من مستودعك في GitHub
 # ملاحظة: تم تعديل الرابط لاستخدام raw ليعمل الفيديو مباشرة
-VIDEO_TPLINK = "https://raw.githubusercontent.com/awoadak-glitch/future-bot/main/tplink.mp4"
-VIDEO_OTHER = "https://raw.githubusercontent.com/awoadak-glitch/future-bot/main/other.mp4"
+VIDEO_TPLINK = "https://github.com/awoadak-glitch/future-bot/raw/main/tplink.mp4"
+VIDEO_OTHER = "https://github.com/awoadak-glitch/future-bot/raw/main/other.mp4"
 
 client = genai.Client(api_key=GEMINI_KEY)
 bot = telebot.TeleBot(TELEGRAM_TOKEN)
